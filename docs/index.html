@@ -4,26 +4,43 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>mbw-bot-zh</title>
 <style>
+:root{--bg:#f6f5f8;--panel:#fff;--ink:#1f1d2b;--muted:#6f6c7f;--line:#e6e4ee;--accent:#6c4fd8;--accent-ink:#fff;--mark:#ffe66d;--hover:#f0edfa}
+@media(prefers-color-scheme:dark){:root{--bg:#15141b;--panel:#1e1d26;--ink:#ecebf2;--muted:#9995ab;--line:#2c2a37;--accent:#9d86ff;--accent-ink:#15141b;--mark:#8a7a1f;--hover:#262431}}
+*{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{font:16px system-ui;display:flex;flex-direction:column;gap:.8em;padding:1em;box-sizing:border-box;max-width:1100px;margin-inline:auto}
-input{font-size:1.2em;padding:.4em;box-sizing:border-box}
-.eps{display:flex;flex-wrap:wrap;gap:.3em;margin:0}
-.eps button{padding:.2em .6em}
-.eps button.on{background:#336;color:#fff}
-.player{width:100%;max-width:960px;margin-inline:auto;aspect-ratio:16/9;background:#000;flex:none}
-.player iframe{width:100%;height:100%;border:0}
-#r{flex:1;overflow:auto;min-height:0;border-top:1px solid #ddd}
-.hit{padding:.5em;border-bottom:1px solid #ddd;cursor:pointer}
-.hit:hover,.hit.on{background:#eef}
-.hit small{color:#777;display:flex;gap:.8em;align-items:center}
-.hit button{font-size:.8em;padding:0 .4em}
-mark{background:#ff6;padding:0 .1em}
-a{color:inherit}
+body{font:16px/1.5 system-ui,-apple-system,"Noto Sans TC",sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;gap:.9em;padding:1.2em 1em;max-width:1100px;margin-inline:auto}
+h1{font-size:1.1em;font-weight:600;margin:0;letter-spacing:.02em;display:flex;align-items:baseline;gap:.6em}
+h1 span{color:var(--muted);font-weight:400;font-size:.85em}
+input[type=text]{width:100%;font:inherit;font-size:1.15em;padding:.6em .9em;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);outline:none}
+input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
+.eps{display:flex;flex-wrap:wrap;gap:.35em;margin:0;align-items:center}
+.eps button{font:inherit;font-size:.85em;padding:.25em .8em;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink);cursor:pointer}
+.eps button:hover{border-color:var(--accent)}
+.eps button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.eps label{font-size:.85em;color:var(--muted);display:flex;align-items:center;gap:.35em;cursor:pointer}
+.eps label input{accent-color:var(--accent)}
+.player{width:100%;max-width:960px;margin-inline:auto;aspect-ratio:16/9;background:#000;flex:none;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.player iframe{width:100%;height:100%;border:0;display:block}
+#n{margin:0;font-size:.85em;color:var(--muted)}
+#r{flex:1;overflow:auto;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+#r:empty{display:none}
+.hit{padding:.7em 1em;border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s}
+.hit:last-child{border-bottom:0}
+.hit:hover{background:var(--hover)}
+.hit.on{background:color-mix(in srgb,var(--accent) 12%,var(--panel));box-shadow:inset 3px 0 0 var(--accent)}
+.hit small{color:var(--muted);display:flex;gap:.9em;align-items:center;font-size:.8em;margin-bottom:.15em}
+.hit small b{font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums}
+.hit a{color:var(--muted);text-decoration:none}
+.hit a:hover{color:var(--accent);text-decoration:underline}
+.hit button{font:inherit;font-size:.8em;padding:0 .6em;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--muted);cursor:pointer}
+.hit button:hover{border-color:var(--accent);color:var(--accent)}
+mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 .1em}
 </style>
-<input id="q" placeholder="關鍵字或 regex，Enter 搜尋" autofocus>
+<h1>mbw-bot-zh <span>《前橋魔女》台詞搜尋</span></h1>
+<input type="text" id="q" placeholder="關鍵字或 regex，Enter 搜尋" autofocus>
 <p class="eps" id="eps"></p>
 <div class="player"><div id="p"></div></div>
-<p id="n" style="margin:0"></p>
+<p id="n"></p>
 <div id="r"></div>
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
@@ -50,7 +67,7 @@ function search(sec) {  // sec: line to select after rendering (when restoring f
   n.textContent = hits.length + ' hits' + (hits.length > MAX ? `（只顯示前 ${MAX}）` : '');
   r.innerHTML = hits.slice(0, MAX).map(([e, vid, s, text]) =>
     `<div class="hit" data-v="${vid}" data-s="${s}">
-      <small>ep${String(e).padStart(2, '0')} ${ts(s)}
+      <small><b>ep${String(e).padStart(2, '0')} · ${ts(s)}</b>
       <a href="${link(vid, s)}" target="_blank" title="在 YouTube 開啟，可自行暫停截圖">YouTube ↗</a>
       <button title="複製連結">複製</button></small>${esc(text).replace(re, m => `<mark>${m}</mark>`)}</div>`).join('');
   setHash(sec);
