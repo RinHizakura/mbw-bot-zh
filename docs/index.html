@@ -35,7 +35,7 @@ const link = (vid, sec) => `https://youtu.be/${vid}?t=${Math.floor(sec)}`;
 const setHash = sec => { location.hash = `q=${encodeURIComponent(q.value)}&ep=${ep}` + (sec != null ? `&t=${sec}` : ''); };
 
 // episode filter buttons
-eps.innerHTML = ['全部', ...Array.from({length: 12}, (_, i) => i + 1)]
+eps.innerHTML = ['全部', ...Array.from({length: 12}, (_, i) => 'ep' + (i + 1))]
   .map((l, i) => `<button data-ep="${i}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('');
 const showEp = () => eps.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.ep === ep));
 eps.onclick = e => { if (e.target.dataset.ep) { ep = +e.target.dataset.ep; showEp(); search(); } };
