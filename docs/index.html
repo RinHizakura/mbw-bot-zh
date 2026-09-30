@@ -7,28 +7,73 @@
 html,body{height:100%;margin:0}
 body{font:16px system-ui;display:flex;flex-direction:column;gap:.8em;padding:1em;box-sizing:border-box;max-width:1100px;margin-inline:auto}
 input{font-size:1.2em;padding:.4em;box-sizing:border-box}
+.eps{display:flex;flex-wrap:wrap;gap:.3em;margin:0}
+.eps button{padding:.2em .6em}
+.eps button.on{background:#336;color:#fff}
 .player{width:100%;max-width:960px;margin-inline:auto;aspect-ratio:16/9;background:#000;flex:none}
 .player iframe{width:100%;height:100%;border:0}
 #r{flex:1;overflow:auto;min-height:0;border-top:1px solid #ddd}
 .hit{padding:.5em;border-bottom:1px solid #ddd;cursor:pointer}
 .hit:hover,.hit.on{background:#eef}
-small{color:#777}
+.hit small{color:#777;display:flex;gap:.8em;align-items:center}
+.hit button{font-size:.8em;padding:0 .4em}
+mark{background:#ff6;padding:0 .1em}
 a{color:inherit}
 </style>
 <input id="q" placeholder="關鍵字或 regex，Enter 搜尋" autofocus>
+<p class="eps" id="eps"></p>
 <div class="player"><div id="p"></div></div>
 <p id="n" style="margin:0"></p>
 <div id="r"></div>
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
 const MAX = 500;  // ponytail: cap the list; nobody scrolls 6000 rows
-let cues = [], player, target = null;  // target: seconds to freeze on after the next load
-fetch('cues.json').then(r => r.json()).then(c => { cues = c; n.textContent = c.length + ' 句已載入'; });
+let cues = [], player, target = null, ep = 0;  // ep 0 = all episodes
 const ts = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 const esc = t => t.replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]));
+const link = (vid, sec) => `https://youtu.be/${vid}?t=${Math.floor(sec)}`;
+const setHash = sec => { location.hash = `q=${encodeURIComponent(q.value)}&ep=${ep}` + (sec != null ? `&t=${sec}` : ''); };
+
+// episode filter buttons
+eps.innerHTML = ['全部', ...Array.from({length: 12}, (_, i) => i + 1)]
+  .map((l, i) => `<button data-ep="${i}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('');
+const showEp = () => eps.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.ep === ep));
+eps.onclick = e => { if (e.target.dataset.ep) { ep = +e.target.dataset.ep; showEp(); search(); } };
+
+function search(sec) {  // sec: line to select after rendering (when restoring from the URL)
+  let re; try { re = new RegExp(q.value, 'gi'); } catch { n.textContent = 'regex 錯誤'; return; }
+  const hits = q.value ? cues.filter(c => (!ep || c[0] === ep) && c[3].search(re) >= 0) : [];
+  n.textContent = hits.length + ' hits' + (hits.length > MAX ? `（只顯示前 ${MAX}）` : '');
+  r.innerHTML = hits.slice(0, MAX).map(([e, vid, s, text]) =>
+    `<div class="hit" data-v="${vid}" data-s="${s}">
+      <small>ep${String(e).padStart(2, '0')} ${ts(s)}
+      <a href="${link(vid, s)}" target="_blank" title="在 YouTube 開啟，可自行暫停截圖">YouTube ↗</a>
+      <button title="複製連結">複製</button></small>${esc(text).replace(re, m => `<mark>${m}</mark>`)}</div>`).join('');
+  setHash(sec);
+  const h = sec != null && r.querySelector(`.hit[data-s="${sec}"]`);
+  if (h) { select(h); h.scrollIntoView({block: 'center'}); }
+}
+q.onkeydown = e => { if (e.key === 'Enter') search(); };
+
+function select(h) {
+  document.querySelectorAll('.hit.on').forEach(x => x.classList.remove('on')); h.classList.add('on');
+  target = +h.dataset.s;
+  setHash(target);
+  if (player) player.loadVideoById({ videoId: h.dataset.v, startSeconds: target });
+}
+r.onclick = e => {
+  const h = e.target.closest('.hit'); if (!h) return;
+  if (e.target.tagName === 'A') return;  // let the link open normally
+  if (e.target.tagName === 'BUTTON') {
+    navigator.clipboard.writeText(link(h.dataset.v, h.dataset.s))
+      .then(() => { e.target.textContent = '已複製'; setTimeout(() => e.target.textContent = '複製', 1200); });
+    return;
+  }
+  select(h);
+};
 
 function onYouTubeIframeAPIReady() {
-  player = new YT.Player('p', { playerVars: { rel: 0 }, events: { onStateChange: e => {
+  player = new YT.Player('p', { playerVars: { rel: 0 }, events: { onReady: restore, onStateChange: e => {
     // load -> plays -> pause on the first PLAYING and snap to the exact second, so the frame is on screen
     if (e.data === YT.PlayerState.PLAYING && target !== null) {
       player.unloadModule('captions'); player.unloadModule('cc');  // subs are burned in; CC would double them
@@ -36,22 +81,13 @@ function onYouTubeIframeAPIReady() {
     }
   } } });
 }
-
-q.onkeydown = e => {
-  if (e.key !== 'Enter') return;
-  let re; try { re = new RegExp(q.value, 'i'); } catch { n.textContent = 'regex 錯誤'; return; }
-  const hits = cues.filter(c => re.test(c[3]));
-  n.textContent = hits.length + ' hits' + (hits.length > MAX ? `（只顯示前 ${MAX}）` : '');
-  r.innerHTML = hits.slice(0, MAX).map(([ep, vid, sec, text]) =>
-    `<div class="hit" data-v="${vid}" data-s="${sec}">
-      <small>ep${String(ep).padStart(2, '0')} ${ts(sec)}
-      <a href="https://youtu.be/${vid}?t=${Math.floor(sec)}" target="_blank" onclick="event.stopPropagation()" title="在 YouTube 開啟，可自行暫停截圖">YouTube ↗</a></small><br>${esc(text)}</div>`).join('');
-};
-r.onclick = e => {
-  const h = e.target.closest('.hit'); if (!h || !player) return;
-  document.querySelectorAll('.hit.on').forEach(x => x.classList.remove('on')); h.classList.add('on');
-  target = +h.dataset.s;
-  player.loadVideoById({ videoId: h.dataset.v, startSeconds: target });
-};
+// restore search + selection from the URL once both cues and player are ready
+function restore() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (!cues.length || !player || !h.has('q')) return;
+  q.value = h.get('q'); ep = +h.get('ep') || 0; showEp();
+  search(h.has('t') ? +h.get('t') : null);
+}
+fetch('cues.json').then(r => r.json()).then(c => { cues = c; n.textContent = c.length + ' 句已載入'; restore(); });
 </script>
 </html>
