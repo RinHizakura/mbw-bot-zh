@@ -14,9 +14,7 @@ h1 span{color:var(--muted);font-weight:400;font-size:.85em}
 input[type=text]{width:100%;font:inherit;font-size:1.15em;padding:.6em .9em;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);outline:none}
 input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
 .eps{display:flex;flex-wrap:wrap;gap:.35em;margin:0;align-items:center}
-.eps button{font:inherit;font-size:.85em;padding:.25em .8em;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink);cursor:pointer}
-.eps button:hover{border-color:var(--accent)}
-.eps button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.eps select{font:inherit;font-size:.85em;padding:.25em .6em;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink);cursor:pointer}
 .eps label{font-size:.85em;color:var(--muted);display:flex;align-items:center;gap:.35em;cursor:pointer}
 .eps label input{accent-color:var(--accent)}
 .player{width:100%;max-width:960px;margin-inline:auto;aspect-ratio:16/9;background:#000;flex:none;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.18)}
@@ -51,12 +49,12 @@ const esc = t => t.replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&g
 const link = (vid, sec) => `https://youtu.be/${vid}?t=${Math.floor(sec)}`;
 const setHash = sec => { location.hash = `q=${encodeURIComponent(q.value)}&ep=${ep}` + (fz.checked ? '&f=1' : '') + (sec != null ? `&t=${sec}` : ''); };
 
-// episode filter buttons
-eps.innerHTML = ['全部', ...Array.from({length: 12}, (_, i) => 'ep' + (i + 1))]
-  .map((l, i) => `<button data-ep="${i}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('');
-const showEp = () => eps.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.ep === ep));
+// episode filter: native <select> stays one line tall, unlike 13 wrapping pills
+eps.innerHTML = '<select id="es">' + ['全部集數', ...Array.from({length: 12}, (_, i) => 'ep' + (i + 1))]
+  .map((l, i) => `<option value="${i}">${l}</option>`).join('') + '</select>';
+const showEp = () => es.value = ep;
 eps.insertAdjacentHTML('beforeend', '<label style="margin-left:auto"><input type="checkbox" id="fz"> 模糊（字之間可隔 2 字）</label>');
-eps.onclick = e => { if (e.target.dataset.ep) { ep = +e.target.dataset.ep; showEp(); search(); } };
+es.onchange = () => { ep = +es.value; search(); };
 fz.onchange = () => search();
 // fuzzy: every query char in order, up to 2 chars apart; regex metachars escaped, spaces dropped
 const fuzzyRe = s => [...s.replace(/\s/g, '')].map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.{0,2}?');
