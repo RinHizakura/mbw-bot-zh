@@ -32,16 +32,20 @@ let cues = [], player, target = null, ep = 0;  // ep 0 = all episodes
 const ts = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 const esc = t => t.replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]));
 const link = (vid, sec) => `https://youtu.be/${vid}?t=${Math.floor(sec)}`;
-const setHash = sec => { location.hash = `q=${encodeURIComponent(q.value)}&ep=${ep}` + (sec != null ? `&t=${sec}` : ''); };
+const setHash = sec => { location.hash = `q=${encodeURIComponent(q.value)}&ep=${ep}` + (fz.checked ? '&f=1' : '') + (sec != null ? `&t=${sec}` : ''); };
 
 // episode filter buttons
 eps.innerHTML = ['全部', ...Array.from({length: 12}, (_, i) => 'ep' + (i + 1))]
   .map((l, i) => `<button data-ep="${i}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('');
 const showEp = () => eps.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.ep === ep));
+eps.insertAdjacentHTML('beforeend', '<label style="margin-left:auto"><input type="checkbox" id="fz"> 模糊（字之間可隔 2 字）</label>');
 eps.onclick = e => { if (e.target.dataset.ep) { ep = +e.target.dataset.ep; showEp(); search(); } };
+fz.onchange = () => search();
+// fuzzy: every query char in order, up to 2 chars apart; regex metachars escaped, spaces dropped
+const fuzzyRe = s => [...s.replace(/\s/g, '')].map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.{0,2}?');
 
 function search(sec) {  // sec: line to select after rendering (when restoring from the URL)
-  let re; try { re = new RegExp(q.value, 'gi'); } catch { n.textContent = 'regex 錯誤'; return; }
+  let re; try { re = new RegExp(fz.checked ? fuzzyRe(q.value) : q.value, 'gi'); } catch { n.textContent = 'regex 錯誤'; return; }
   const hits = q.value ? cues.filter(c => (!ep || c[0] === ep) && c[3].search(re) >= 0) : [];
   n.textContent = hits.length + ' hits' + (hits.length > MAX ? `（只顯示前 ${MAX}）` : '');
   r.innerHTML = hits.slice(0, MAX).map(([e, vid, s, text]) =>
@@ -85,7 +89,7 @@ function onYouTubeIframeAPIReady() {
 function restore() {
   const h = new URLSearchParams(location.hash.slice(1));
   if (!cues.length || !player || !h.has('q')) return;
-  q.value = h.get('q'); ep = +h.get('ep') || 0; showEp();
+  q.value = h.get('q'); ep = +h.get('ep') || 0; showEp(); fz.checked = h.has('f');
   search(h.has('t') ? +h.get('t') : null);
 }
 fetch('cues.json').then(r => r.json()).then(c => { cues = c; n.textContent = c.length + ' 句已載入'; restore(); });
