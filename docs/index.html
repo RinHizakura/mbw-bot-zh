@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mbw-bot-zh</title>
+<style>
+body{font:15px system-ui;margin:0;padding:1em;max-width:1200px;margin-inline:auto}
+input{width:100%;font-size:1.2em;padding:.4em;box-sizing:border-box}
+.wrap{display:grid;grid-template-columns:1fr 1fr;gap:1em;margin-top:1em}
+@media(max-width:800px){.wrap{grid-template-columns:1fr}}
+.player{position:sticky;top:1em;aspect-ratio:16/9;background:#000}
+.player iframe{width:100%;height:100%;border:0}
+.hit{padding:.5em;border-bottom:1px solid #ddd;cursor:pointer}
+.hit:hover,.hit.on{background:#eef}
+small{color:#777}
+a{color:inherit}
+</style>
+<input id="q" placeholder="關鍵字或 regex，Enter 搜尋" autofocus>
+<p id="n"></p>
+<div class="wrap">
+  <div id="r"></div>
+  <div class="player"><iframe id="p" allow="autoplay" allowfullscreen></iframe></div>
+</div>
+<script>
+const MAX = 500;  // ponytail: cap the list; nobody scrolls 6000 rows
+let cues = [];
+fetch('cues.json').then(r => r.json()).then(c => { cues = c; n.textContent = c.length + ' 句已載入'; });
+const ts = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+const esc = t => t.replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]));
+q.onkeydown = e => {
+  if (e.key !== 'Enter') return;
+  let re; try { re = new RegExp(q.value, 'i'); } catch { n.textContent = 'regex 錯誤'; return; }
+  const hits = cues.filter(c => re.test(c[3]));
+  n.textContent = hits.length + ' hits' + (hits.length > MAX ? `（只顯示前 ${MAX}）` : '');
+  r.innerHTML = hits.slice(0, MAX).map(([ep, vid, sec, text]) =>
+    `<div class="hit" data-v="${vid}" data-s="${Math.floor(sec)}">
+      <small>ep${String(ep).padStart(2, '0')} ${ts(sec)}
+      <a href="https://youtu.be/${vid}?t=${Math.floor(sec)}" target="_blank" onclick="event.stopPropagation()">↗</a></small><br>${esc(text)}</div>`).join('');
+};
+r.onclick = e => {
+  const h = e.target.closest('.hit'); if (!h) return;
+  document.querySelectorAll('.hit.on').forEach(x => x.classList.remove('on')); h.classList.add('on');
+  p.src = `https://www.youtube.com/embed/${h.dataset.v}?start=${h.dataset.s}&autoplay=1`;
+};
+</script>
+</html>
