@@ -30,7 +30,10 @@ const esc = t => t.replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&g
 function onYouTubeIframeAPIReady() {
   player = new YT.Player('p', { playerVars: { rel: 0 }, events: { onStateChange: e => {
     // load -> plays -> pause on the first PLAYING and snap to the exact second, so the frame is on screen
-    if (e.data === YT.PlayerState.PLAYING && target !== null) { player.pauseVideo(); player.seekTo(target, true); target = null; }
+    if (e.data === YT.PlayerState.PLAYING && target !== null) {
+      player.unloadModule('captions'); player.unloadModule('cc');  // subs are burned in; CC would double them
+      player.pauseVideo(); player.seekTo(target, true); target = null;
+    }
   } } });
 }
 
