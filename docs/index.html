@@ -9,6 +9,7 @@ body{font:16px system-ui;display:flex;flex-direction:column;gap:.8em;padding:1em
 input{font-size:1.2em;padding:.4em;box-sizing:border-box}
 .player{width:100%;max-width:960px;margin-inline:auto;aspect-ratio:16/9;background:#000;flex:none}
 .player iframe{width:100%;height:100%;border:0}
+.bar{display:flex;gap:1em;align-items:center;margin:0}
 #r{flex:1;overflow:auto;min-height:0;border-top:1px solid #ddd}
 .hit{padding:.5em;border-bottom:1px solid #ddd;cursor:pointer}
 .hit:hover,.hit.on{background:#eef}
@@ -17,22 +18,30 @@ a{color:inherit}
 </style>
 <input id="q" placeholder="關鍵字或 regex，Enter 搜尋" autofocus>
 <div class="player"><div id="p"></div></div>
-<p id="n" style="margin:0"></p>
+<p class="bar"><button id="play">▶ 播放</button><span id="n"></span></p>
 <div id="r"></div>
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
 const MAX = 500;  // ponytail: cap the list; nobody scrolls 6000 rows
-let cues = [], player, target = null;  // target: seconds to freeze on after the next load
+let cues = [], player, frozen = false;
 fetch('cues.json').then(r => r.json()).then(c => { cues = c; n.textContent = c.length + ' 句已載入'; });
 const ts = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 const esc = t => t.replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]));
 
+// "Freeze" = keep PLAYING muted at 0.25x. YouTube hides all its chrome ~3s into playback as long
+// as nothing touches the player; a real pause (or any seekTo) brings the title bar, cards and logo back.
 function onYouTubeIframeAPIReady() {
-  player = new YT.Player('p', { playerVars: { rel: 0 }, events: { onStateChange: e => {
-    // load -> plays -> pause on the first PLAYING and snap to the exact second, so the frame is on screen
-    if (e.data === YT.PlayerState.PLAYING && target !== null) { player.pauseVideo(); player.seekTo(target, true); target = null; }
-  } } });
+  player = new YT.Player('p', {
+    playerVars: { controls: 0, rel: 0, iv_load_policy: 3, disablekb: 1 },
+    events: { onStateChange: e => {
+      if (e.data !== YT.PlayerState.PLAYING || !frozen) return;
+      frozen = false;
+      player.unloadModule('captions'); player.unloadModule('cc');  // burned-in subs already on screen
+      player.mute(); player.setPlaybackRate(0.25);
+    } }
+  });
 }
+play.onclick = () => { if (!player) return; player.setPlaybackRate(1); player.unMute(); player.playVideo(); };
 
 q.onkeydown = e => {
   if (e.key !== 'Enter') return;
@@ -47,8 +56,8 @@ q.onkeydown = e => {
 r.onclick = e => {
   const h = e.target.closest('.hit'); if (!h || !player) return;
   document.querySelectorAll('.hit.on').forEach(x => x.classList.remove('on')); h.classList.add('on');
-  target = +h.dataset.s;
-  player.loadVideoById({ videoId: h.dataset.v, startSeconds: target });
+  frozen = true;  // start 0.5s early: by the time the chrome fades (~3s at 0.25x) we are on the line
+  player.loadVideoById({ videoId: h.dataset.v, startSeconds: Math.max(0, +h.dataset.s - 0.5) });
 };
 </script>
 </html>
